@@ -68,7 +68,7 @@
   bestr2<-model_select(r2,criterion="loglik")
   
   # OJO
-  # una vez que se determina la mejor distribución, se va a usar su CDF, algunas necesitan de paquetes para usarla (No se puede automatizar :( )
+  # una vez que se determina la mejor distribución, se va a usar su CDF, algunas necesitan de paquetes para usarla (No se puede automatizar :(, efe )
 
   #este caso es una Skew Generalized Error
   
@@ -130,14 +130,14 @@
   
   VaR_df<-data.frame()
   tVaR_df<-data.frame()
-  
+
   for(k in 1:100){ #numero de veces que se calcularan los VaR y tVaR para sacarles promedio
     
-    nsims<-1000 #numero de simulaciones sobre las cuales hace P&L, total de simulaciones 100x nsims
+    #nsims<-1000 #numero de simulaciones sobre las cuales hace P&L, total de simulaciones 100x nsims
     
     sim_rend<-data.frame()
-    
-    sim_rend<- rMvdc(n=nsims,DistConj) #x y y sim con la copula   simula nsims puntos aleatorios de la distribución conjunta (rendimientos simulados)
+# ------------------ -n=nsims (AQUI LE MOVI AL CODIGO) -------------------------------------------------------------------------------- 
+    sim_rend<- rMvdc(n=n1,DistConj) #x y y sim con la copula   simula nsims puntos aleatorios de la distribución conjunta (rendimientos simulados)
     
     #calculamos reevaluacion
     reev_sim<-data.frame()
@@ -195,13 +195,54 @@
   
   coptVaR_tabla
   
+  #-----------------------------------------------------------------------------
+  # Estimacion del TVaR a manita
+  View(PL_sim)
+  
+  S1_PL <- data.frame( PL_sim[,1] )
+  S2_PL <- data.frame( PL_sim[,2])
+  Portfolio_PL <- data.frame( PL_sim[,3] )
+
+  colnames(S1_PL) <- "PL_S1" # Le puse estos nombres pq les habian quedado nombres bien raros
+  colnames(S2_PL) <- "PL_S2"
+  colnames(Portfolio_PL) <- "PL_Portfolio"
+  
+  # Ordenamos los valores de la P&L (del lado derecho estan las perdidas)
+  S1_PL <- S1_PL[with(S1_PL, order(-S1_PL$PL_S1)), ] 
+  S2_PL <- S2_PL[with(S2_PL, order(-S2_PL$PL_S2)), ] 
+  Portfolio_PL <- Portfolio_PL[with(Portfolio_PL, order(-Portfolio_PL$PL_Portfolio)), ] 
+  
+    
+  # Construimos la columna de las probas acumuladas acumuladas (cdf)
+  probas <- data.frame(rep(1/n1,n1))
+  
+  Fx<-vector()
+    for(i in 1:n1){
+      Fx[i]<-sum(probas[i:n1,1])
+    }
+  
+  # Agregamos esta columna de cdf a cada una de las tablas
+  S1_PL <- data.frame(cbind(S1_PL,Fx))
+  S2_PL <- data.frame(cbind(S2_PL,Fx))
+  Portfolio_PL <- data.frame(cbind(Portfolio_PL,Fx))
+  
+  # Filtramos aquellos valores de la P&L cuyo valor de la cdf sea mayor al 95%
+  S1_tvar <- S1_PL[which(S1_PL$Fx>=0.95),]
+  S2_tvar <- S2_PL[which(S2_PL$Fx>=0.95),]
+  Portfolio_tvar <- Portfolio_PL[which(Portfolio_PL$Fx>=0.95),]
   
   
+  mean(S1_tvar[,1])
   
-  
-  
-  
-  
+  # TVaR al 95% (segunda forma de calcular el tvar)
+  tvar_2<-cbind( mean(S1_tvar[,1]), mean(S2_tvar[,1]), mean(Portfolio_tvar[,1]))
+
+  copTVaR_2<-kable( tvar_2, digits = 4, col.names = c("Activo1","Activo2","Portafolio"), caption = "Copula TVaR 95% (Expected Shortfall), segunda forma" )
+
+  #-----------------------------------------------------------------------------
+  # Comparacion directa
+  coptVaR_tabla # Con la funcion ES
+  copTVaR_2 # A manita
   
   
   
